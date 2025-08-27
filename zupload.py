@@ -58,19 +58,48 @@ if __name__ == '__main__':
         raise ValueError("No deposits exist with provided ID.")
     
     ## get bucket
-    ## at time of writing there is a bug that newly-created depositions don't have a bucket at creation
-    ## you can create one by uploading any file via the "old" api:
-    ## (see https://github.com/zenodo/zenodo/issues/2286)
-    ## url = js['links']['files']
-    ## url_full = url + "?access_token=" + ACCESS_TOKEN
-    ## files = {'file':open("/path/to/small/test_file.txt",'rb')}
-    ## data = {'name':"test_file.txt"}
-    ## r = requests.post(url_full,data=data,files=files)
-    ## then delete the file manually
-    
-    ## anyway. get the bucket!
-    bucket = js['links']['bucket']
-    
+    ## as of 8/2025 this is still not fixed, so I'm adding a try/except to create the dummy file
+    ## it still needs to be deleted manually, though
+    try:
+        bucket = js['links']['bucket']
+    except:
+        ## at time of writing there is a bug that newly-created depositions don't have a bucket at creation
+        ## you can create one by uploading any file via the "old" api:
+        ## (see https://github.com/zenodo/zenodo/issues/2286)
+        ## url = js['links']['files']
+        ## url_full = url + "?access_token=" + ACCESS_TOKEN
+        ## files = {'file':open("/path/to/small/test_file.txt",'rb')}
+        ## data = {'name':"test_file.txt"}
+        ## r = requests.post(url_full,data=data,files=files)
+        ## then delete the file manually
+        print("WARNING: No bucket found due to known issue with the Zenodo API.")
+        print("Creating and uploading a dummy file via the old API.")
+        print("This will need to be deleted manually from the Zenodo record.")
+        url = js['links']['files']
+        url_full = url + "?access_token=" + ACCESS_TOKEN
+        with open("dummy_file.txt","w") as file:
+            file.write('this is a dummy file to create the zenodo API bucket. feel free to delete.')
+        
+        files = {'file':open("dummy_file.txt",'rb')}
+        data = {'name':"dummy_file.txt"}
+        r = requests.post(url_full,data=data,files=files)
+        
+        ## clean up the dummy file from local
+        ## but it needs to be removed manually from the record
+        os.remove("dummy_file.txt")
+        
+        
+        ## now try again
+        for deposit in zlist.json():
+            if str(deposit['id']) == args.id:
+                js = deposit
+                break
+        if js is None:
+            raise ValueError("No deposits exist with provided ID.")
+        
+        bucket = js['links']['bucket']
+        
+        
     ## get file size (for progress bar/chunking)
     file_size = os.stat(filepath).st_size
     
